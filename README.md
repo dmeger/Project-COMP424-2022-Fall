@@ -130,13 +130,13 @@ S_i = \#\text{Blocks of Zone}_i
 Each player should maximize the final score of itself, i.e., the number of blocks in its zone when the game ends.
 
 ### Example Gameplay
-Here we show a gameplay describing a $`2`$-player game on a $`5\times 5`$ chessboard. Each player can move at most $`3`$ steps in each round.
+Here we show a gameplay describing a `2`-player game on a $5\times 5$ chessboard. Each player can move at most `3` steps in each round.
 
 <p align="center">
   <img src="Gameplay.gif" width="600" height="600">
 </p>
 
-The final score is $`A:B = 15:10`$. So A wins the game.
+The final score is `A:B = 15:10`. So `A` wins the game.
 
 ## Issues? Bugs? Questions?
 
