@@ -1,0 +1,25 @@
+ALGORITHM
+
+Given your current position and opponent current position determine the 5 shortest paths from you to your opponent using A*. Determine the list of legal moves by taking up to k steps along the path.
+
+For each of these possible moves expand the tree by assuming your opponent plays in the exact same way and will also choose 5 shortest paths… etc. This results in a tree of depth 2 and with ~(5*k)*(5*k). Then, use the board evaluation method given by 
+
+value(board) = # of blocks closer to you - # of blocks closer to opponent 
+
+and run the minmax algorithm on this tree. 
+
+Need to include alpha-beta pruning on the tree to make it more time efficient and also find an efficient way of calculating the board value at each point (likely requires depth limiting it for large boards).
+
+Required methods
+
+distance_to_squares_from_position()
+
+value_of_game_state()
+
+simulate_board_after_move()
+
+shortest_paths()
+
+get_moves_from_path()
+
+is_move_game_ending()
