@@ -4,6 +4,14 @@ from store import register_agent
 import sys
 import numpy as np
 import copy
+import math
+
+class TreeNode():
+
+    def __init__(self, move, parent=None):
+        self.move   = move
+        self.parent = None
+        self.child  = None
 
 class A_Star_Node():
 
@@ -34,7 +42,6 @@ class StudentAgent(Agent):
             "d": 2,
             "l": 3,
         }
-        self.game_state = None
 
     def step(self, chess_board, my_pos, adv_pos, max_step):
         """
@@ -51,10 +58,63 @@ class StudentAgent(Agent):
 
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
-        # save current game state
-        self.game_state = (my_pos, adv_pos, chess_board)
+        # Run minimax with alpha beta pruning 
+        max_move, max_val = self.minimax(my_pos, adv_pos, chess_board, -math.inf, math.inf, True, max_step)
 
-        return my_pos, self.dir_map["u"]
+        return max_move[0], self.dir_map[max_move[1]]
+
+
+    def minimax(self, my_pos, adv_pos, chess_board, alpha, beta, max_player, max_step, terminal=False):
+
+        # Terminal Node
+        if terminal:
+            return None, self.utility_of_state(my_pos, adv_pos, chess_board)
+
+        if max_player:
+            
+            max_move = None
+            path_ls = self.shortest_path((my_pos, adv_pos, chess_board))
+            max_val = -math.inf
+            valid_move_ls = []
+
+            # Retrieve all possible moves
+            for path in path_ls:
+                valid_move_ls.append(self.moves_from_path(path, max_step))
+
+            for move in valid_move_ls:
+                self.simulate_board(move, chess_board, set=True)
+                min_move, value = self.minimax(move[0], adv_pos, chess_board, alpha, beta, False, max_step)
+                self.simulate_board(move, chess_board, set=False)
+                if value > max:
+                    max_move = move
+                max_val = max(max_val, value)
+                alpha = max(alpha, max_val)
+                if beta <= alpha:
+                    # Prune
+                    break
+            return max_move, max_val
+        # Minimum player
+        else:
+            path_ls = self.shortest_path((adv_pos, my_pos, chess_board))
+            min_val = math.inf
+            valid_move_ls = []
+
+            # Retrieve all possible moves
+            for path in path_ls:
+                valid_move_ls.append(self.moves_from_path(path, max_step))
+            
+            for move in valid_move_ls:
+                self.simulate_board(move, chess_board, set=True)
+                throwaway, value = self.minimax(my_pos, move[0], chess_board, alpha, beta, True, max_step, True)
+                self.simulate_board(move, chess_board, set=False)
+                min_val = min(min, value)
+                beta = min(beta, min_val)
+                if beta <= alpha:
+                    # Prune
+                    break
+            return None, min_val
+
+
 
     def distance_to_position(self, game_state, max_dfs_depth=8):
   
@@ -80,18 +140,10 @@ class StudentAgent(Agent):
         return distances
     
     # Return the heuristic value of a given move
-    def move_utility(self, move, adv_pos):
+    def utility_of_state(self, my_pos, adv_pos, chess_board):
 
-        chess_board = self.game_state[2]
-
-        # Simulate the move
-        self.simulate_board(move, set=True)
-
-        dist     = self.distance_to_position((move[0], adv_pos, chess_board))
-        opp_dist = self.distance_to_position((adv_pos, move[0], chess_board))
-
-        # Reset the board
-        self.simulate_board(move, set=False)
+        dist     = self.distance_to_position((my_pos, adv_pos, chess_board))
+        opp_dist = self.distance_to_position((adv_pos, my_pos, chess_board))
 
         diff = dist - opp_dist
 
@@ -220,9 +272,8 @@ class StudentAgent(Agent):
 
         return move_ls
 
-    def simulate_board(self, move, set):
+    def simulate_board(self, move, chess_board, set):
 
-        chess_board = self.game_state[2]
         pos = move[0]
         dir = move[1]
 
