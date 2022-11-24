@@ -2,6 +2,7 @@
 from agents.agent import Agent
 from store import register_agent
 import sys
+import math
 
 
 @register_agent("student_agent")
@@ -23,7 +24,8 @@ class StudentAgent(Agent):
 
     def allPossibleNextMoves(self, chess_board, my_pos, adv_pos, max_step):
         # Set to keep track of previously visited tiles
-        alreadyVisited = set()
+        alreadyVisitedPosition = set()
+        allMoves = set()
 
         def dfs(position, depth):
             x, y = position
@@ -38,25 +40,51 @@ class StudentAgent(Agent):
                 return
 
             # Check if already visited this tile
-            if position in alreadyVisited:
+            if position in alreadyVisitedPosition:
                 return
             else:
-                alreadyVisited.add(position)
+                alreadyVisitedPosition.add(position)
 
             if depth < max_step:
                 # Check if up barrier in the way
                 if chess_board[x][y][self.dir_map["u"]] == False:
                     # If not explore that direction
+                    allMoves.add(((x, y), self.dir_map["u"]))
                     dfs((position[0] - 1, position[1]), depth + 1)
                 if chess_board[x][y][self.dir_map["d"]] == False:
+                    allMoves.add(((x, y), self.dir_map["d"]))
                     dfs((position[0] + 1, position[1]), depth + 1)
                 if chess_board[x][y][self.dir_map["r"]] == False:
+                    allMoves.add(((x, y), self.dir_map["r"]))
                     dfs((position[0], position[1] + 1), depth + 1)
                 if chess_board[x][y][self.dir_map["l"]] == False:
+                    allMoves.add(((x, y), self.dir_map["l"]))
                     dfs((position[0], position[1] - 1), depth + 1)
 
         dfs(my_pos, 0)
-        return alreadyVisited
+        return allMoves
+
+    def distanceToOpponent(self, my_pos, adv_pos):
+        return adv_pos[0][0] - my_pos[0][0] + adv_pos[0][1] - my_pos[0][1]
+
+    def heuristic(self, chess_board, adv_pos, new_move):
+        # If you can win on the move return - 10000
+
+        return math.dist(new_move[0], adv_pos)
+
+    # function for finding the best move based on the heuristic
+    def findBestMove(self, allMoves, chess_board, my_pos, adv_pos, max_step):
+
+        min_H_move = allMoves.pop()
+        min_H = self.heuristic(chess_board, adv_pos, min_H_move)
+
+        for new_move in allMoves:
+            new_H = self.heuristic(chess_board, adv_pos, new_move)
+            if (new_H < min_H):
+                min_H = new_H
+                min_H_move = new_move
+
+        return min_H_move
 
     def step(self, chess_board, my_pos, adv_pos, max_step):
         """
@@ -78,4 +106,7 @@ class StudentAgent(Agent):
         allMoves = self.allPossibleNextMoves(
             chess_board, my_pos, adv_pos, max_step)
 
-        return my_pos, self.dir_map["u"]
+        bestMove = self.findBestMove(
+            allMoves, chess_board, my_pos, adv_pos, max_step)
+
+        return bestMove

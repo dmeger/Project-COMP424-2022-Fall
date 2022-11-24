@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--player_1", type=str, default="random_agent")
+    parser.add_argument("--player_1", type=str, default="student_agent")
     parser.add_argument("--player_2", type=str, default="random_agent")
     parser.add_argument("--board_size", type=int, default=None)
     parser.add_argument(
@@ -27,7 +27,7 @@ def get_args():
         default=12,
         help="In autoplay mode, the maximum board size",
     )
-    parser.add_argument("--display", action="store_true", default=False)
+    parser.add_argument("--display", action="store_true", default=True)
     parser.add_argument("--display_delay", type=float, default=0.4)
     parser.add_argument("--display_save", action="store_true", default=False)
     parser.add_argument("--display_save_path", type=str, default="plots/")
@@ -99,12 +99,14 @@ class Simulator:
         p1_times = []
         p2_times = []
         if self.args.display:
-            logger.warning("Since running autoplay mode, display will be disabled")
+            logger.warning(
+                "Since running autoplay mode, display will be disabled")
         self.args.display = False
         with all_logging_disabled():
             for i in tqdm(range(self.args.autoplay_runs)):
                 swap_players = i % 2 == 0
-                board_size = np.random.randint(args.board_size_min, args.board_size_max)
+                board_size = np.random.randint(
+                    args.board_size_min, args.board_size_max)
                 p0_score, p1_score, p0_time, p1_time = self.run(
                     swap_players=swap_players, board_size=board_size
                 )
