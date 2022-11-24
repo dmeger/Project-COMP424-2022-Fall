@@ -278,7 +278,7 @@ class World:
 
         Parameters
         ----------
-        start_pos : tuple
+        start_pos : np.ndarray
             The start position of the agent.
         end_pos : np.ndarray
             The end position of the agent.
