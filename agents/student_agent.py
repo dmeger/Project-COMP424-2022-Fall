@@ -21,6 +21,43 @@ class StudentAgent(Agent):
             "l": 3,
         }
 
+    def allPossibleNextMoves(self, chess_board, my_pos, adv_pos, max_step):
+        # Set to keep track of previously visited tiles
+        alreadyVisited = set()
+
+        def dfs(position, depth):
+            x, y = position
+            size = len(chess_board)
+
+            # Do not consider spot opponent is in
+            if position == adv_pos:
+                return
+
+            # Check if off the board
+            if x >= size or x < 0 or y >= size or y < 0:
+                return
+
+            # Check if already visited this tile
+            if position in alreadyVisited:
+                return
+            else:
+                alreadyVisited.add(position)
+
+            if depth < max_step:
+                # Check if up barrier in the way
+                if chess_board[x][y][self.dir_map["u"]] == False:
+                    # If not explore that direction
+                    dfs((position[0] - 1, position[1]), depth + 1)
+                if chess_board[x][y][self.dir_map["d"]] == False:
+                    dfs((position[0] + 1, position[1]), depth + 1)
+                if chess_board[x][y][self.dir_map["r"]] == False:
+                    dfs((position[0], position[1] + 1), depth + 1)
+                if chess_board[x][y][self.dir_map["l"]] == False:
+                    dfs((position[0], position[1] - 1), depth + 1)
+
+        dfs(my_pos, 0)
+        return alreadyVisited
+
     def step(self, chess_board, my_pos, adv_pos, max_step):
         """
         Implement the step function of your agent here.
@@ -37,4 +74,8 @@ class StudentAgent(Agent):
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
         # dummy return
+
+        allMoves = self.allPossibleNextMoves(
+            chess_board, my_pos, adv_pos, max_step)
+
         return my_pos, self.dir_map["u"]
