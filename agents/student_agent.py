@@ -3,6 +3,7 @@ from agents.agent import Agent
 from store import register_agent
 import sys
 import math
+import copy
 
 
 @register_agent("student_agent")
@@ -67,8 +68,91 @@ class StudentAgent(Agent):
     def distanceToOpponent(self, my_pos, adv_pos):
         return adv_pos[0][0] - my_pos[0][0] + adv_pos[0][1] - my_pos[0][1]
 
+    # Copied and adjusted code from world.py
+    # Prof said we could do this https://edstem.org/us/courses/28046/discussion/2187454
+    def checkEndGame(self, chess_board, my_pos, adv_pos):
+        board_size = len(chess_board)
+
+        # Union-Find
+        father = dict()
+        for r in range(board_size):
+            for c in range(board_size):
+                father[(r, c)] = (r, c)
+
+        def find(pos):
+            if father[pos] != pos:
+                father[pos] = find(father[pos])
+            return father[pos]
+
+        def union(pos1, pos2):
+            father[pos1] = pos2
+
+        moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
+
+        for r in range(board_size):
+            for c in range(board_size):
+                for dir, move in enumerate(
+                    moves[1:3]
+                ):  # Only check down and right
+                    if chess_board[r, c, dir + 1]:
+                        continue
+                    pos_a = find((r, c))
+                    pos_b = find((r + move[0], c + move[1]))
+                    if pos_a != pos_b:
+                        union(pos_a, pos_b)
+
+        for r in range(board_size):
+            for c in range(board_size):
+                find((r, c))
+        p0_pos, wall = my_pos
+        p0_r = find(p0_pos)
+        p1_r = find(adv_pos)
+        p0_score = list(father.values()).count(p0_r)
+        p1_score = list(father.values()).count(p1_r)
+        if p0_r == p1_r:
+            return False, p0_score, p1_score
+        player_win = None
+        win_blocks = -1
+        if p0_score > p1_score:
+            player_win = 0
+            win_blocks = p0_score
+        elif p0_score < p1_score:
+            player_win = 1
+            win_blocks = p1_score
+        else:
+            player_win = -1  # Tie
+        # returns 1 if our agent wins and 0 if we lose?
+        return True, p0_score, p1_score
+
+    def setBarrier(self, chess_board, move):
+        opposites = {0: 2, 1: 3, 2: 0, 3: 1}
+        moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
+
+        newBoard = copy.deepcopy(chess_board)
+
+        pos, dir = move
+        x, y = pos
+
+        newBoard[x, y, dir] = True
+
+        move = moves[dir]
+        newBoard[x + move[0], y + move[1], opposites[dir]] = True
+
+        return newBoard
+
     def heuristic(self, chess_board, adv_pos, new_move):
-        # If you can win on the move return - 10000
+        boardAfterMove = self.setBarrier(chess_board, new_move)
+
+        someoneWon, myScore, theirScore = self.checkEndGame(
+            boardAfterMove, new_move, adv_pos)
+
+        if myScore > theirScore:
+            print("I can win!!: ", myScore)
+            return -100 - myScore
+
+        if myScore < theirScore:
+            print("I can lose watch out!!: ", myScore)
+            return 100 + myScore
 
         return math.dist(new_move[0], adv_pos)
 
