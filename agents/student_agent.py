@@ -128,46 +128,59 @@ class StudentAgent(Agent):
         opposites = {0: 2, 1: 3, 2: 0, 3: 1}
         moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
 
+        # Create a copy of the board so the original stays intact
         newBoard = copy.deepcopy(chess_board)
 
+        # This is all copied from world.py
         pos, dir = move
         x, y = pos
-
         newBoard[x, y, dir] = True
-
         move = moves[dir]
         newBoard[x + move[0], y + move[1], opposites[dir]] = True
-
         return newBoard
 
     def heuristic(self, chess_board, adv_pos, new_move):
+        # Create a copy of the bo
         boardAfterMove = self.setBarrier(chess_board, new_move)
 
+        # Check if someone can win the game
+        # This function is interpreted from world.py
         someoneWon, myScore, theirScore = self.checkEndGame(
             boardAfterMove, new_move, adv_pos)
-
         if myScore > theirScore:
-            print("I can win!!: ", myScore)
-            return -100 - myScore
-
+            return -1000 - myScore
         if myScore < theirScore:
-            print("I can lose watch out!!: ", myScore)
-            return 100 + myScore
+            return 1000 + myScore
 
-        return math.dist(new_move[0], adv_pos)
+        # Initialize a heuris
+        heuristic = math.dist(new_move[0], adv_pos)
+
+        # Count the # of walls that surround the position
+        wallCount = 0
+        new_pos, dir = new_move
+        x, y = new_pos
+        for wall in boardAfterMove[x][y]:
+            if wall == True:
+                wallCount = wallCount + 1
+
+        heuristic = heuristic + (wallCount * 10)
+
+        return heuristic
 
     # function for finding the best move based on the heuristic
     def findBestMove(self, allMoves, chess_board, my_pos, adv_pos, max_step):
-
+        # initialize the best move as the first move
         min_H_move = allMoves.pop()
+        # calculate the heuristic value
         min_H = self.heuristic(chess_board, adv_pos, min_H_move)
-
         for new_move in allMoves:
+            # go through all the possible values
             new_H = self.heuristic(chess_board, adv_pos, new_move)
+            # if you find a move with a better heuristic set it as best move
             if (new_H < min_H):
                 min_H = new_H
                 min_H_move = new_move
-
+        # return best possible move
         return min_H_move
 
     def step(self, chess_board, my_pos, adv_pos, max_step):
