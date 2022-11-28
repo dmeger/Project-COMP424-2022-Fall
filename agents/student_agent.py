@@ -195,38 +195,30 @@ class StudentAgent(Agent):
 
     def minMax(self, chess_board, my_move, adv_pos, max_step, depth, isMax):
         if depth == 0:
-            return my_move, self.heuristic(chess_board, adv_pos, my_move)
+            return self.heuristic(chess_board, adv_pos, my_move)
 
-        findBestMove = True
-
-        my_pos, dir = my_move
+        my_pos, _ = my_move
 
         if not isMax:
             allMoves = self.getAllMoves(chess_board, my_pos, adv_pos, max_step)
             minH = 100000
-            minMove = (1, 1, 0)
             for move in allMoves:
                 boardAfterMove = self.setBarrier(chess_board, move)
-                res_move, res_H = self.minMax(
+                res_H = self.minMax(
                     boardAfterMove, move, adv_pos, max_step, depth - 1, not isMax)
                 if res_H < minH:
-                    minMove = res_move
                     minH = res_H
-            return minMove, minH
+            return minH
         else:
-            # change the perspective, flip my_pos and adv_pos
-            # essentially find the best move for the other player
             allMoves = self.getAllMoves(chess_board, adv_pos, my_pos, max_step)
             minH = 100000
-            minMove = False
             for move in allMoves:
                 boardAfterMove = self.setBarrier(chess_board, move)
-                res_move, res_H = self.minMax(
+                res_H = self.minMax(
                     boardAfterMove, move, my_pos, max_step, depth - 1, not isMax)
                 if res_H < minH:
-                    minMove = res_move
                     minH = res_H
-            return minMove, minH
+            return minH
 
     def step(self, chess_board, my_pos, adv_pos, max_step):
         """
@@ -254,10 +246,11 @@ class StudentAgent(Agent):
         minH = 10000
 
         for move in allMoves:
-            resMove, resH = self.minMax(
-                chess_board, move, adv_pos, max_step, 1, False)
+            # print("heuristic for move: ", move)
+            resH = self.minMax(
+                chess_board, move, adv_pos, max_step, 2, False)
+            print(resH)
             if resH < minH:
                 minH = resH
-                bestMove = resMove
-
+                bestMove = move
         return bestMove
