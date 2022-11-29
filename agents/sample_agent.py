@@ -6,16 +6,16 @@ import math
 import copy
 
 
-@register_agent("test_agent")
-class TestAgent(Agent):
+@register_agent("sample_agent")
+class SampleAgent(Agent):
     """
     A dummy class for your implementation. Feel free to use this class to
     add any helper functionalities needed for your agent.
     """
 
     def __init__(self):
-        super(TestAgent, self).__init__()
-        self.name = "TestAgent"
+        super(SampleAgent, self).__init__()
+        self.name = "SampleAgent"
         self.dir_map = {
             "u": 0,
             "r": 1,
