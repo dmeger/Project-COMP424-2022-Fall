@@ -152,7 +152,7 @@ class SampleAgent(Agent):
         if myScore < theirScore:
             return 1000 + myScore
 
-        # Initialize a heuris
+        # Initialize a heuristic
         heuristic = math.dist(new_move[0], adv_pos)
 
         # Count the # of walls that surround the position
@@ -163,13 +163,13 @@ class SampleAgent(Agent):
             if wall == True:
                 wallCount = wallCount + 1
 
-        heuristic = heuristic + (wallCount * 10)
+        heuristic = heuristic + (wallCount * 5)
 
         return heuristic
 
     # function for finding the best move based on the heuristic
     def findBestMove(self, allMoves, chess_board, my_pos, adv_pos, max_step):
-        # initialize the best move as the first move
+        # Initialize the best move as the first move
         min_H_move = allMoves.pop()
         # calculate the heuristic value
         min_H = self.heuristic(chess_board, adv_pos, min_H_move)

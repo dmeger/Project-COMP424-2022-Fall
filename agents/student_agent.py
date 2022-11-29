@@ -100,8 +100,7 @@ class StudentAgent(Agent):
         for r in range(board_size):
             for c in range(board_size):
                 find((r, c))
-        p0_pos, wall = my_pos
-        p0_r = find(p0_pos)
+        p0_r = find(my_pos)
         p1_r = find(adv_pos)
         p0_score = list(father.values()).count(p0_r)
         p1_score = list(father.values()).count(p1_r)
@@ -135,63 +134,52 @@ class StudentAgent(Agent):
         newBoard[x + move[0], y + move[1], opposites[dir]] = True
         return newBoard
 
-    def heuristic(self, chess_board, adv_pos, new_move):
+    def heuristic(self, chess_board, adv_pos, my_pos):
         # Check if someone can win the game
-        # This function is interpreted from world.py
         someoneWon, myScore, theirScore = self.checkEndGame(
-            chess_board, new_move, adv_pos)
+            chess_board, my_pos, adv_pos)
         if myScore > theirScore:
             return -1000 - myScore
         if myScore < theirScore:
             return 1000 + myScore
 
         # Initialize a heuris
-        heurVal = math.dist(new_move[0], adv_pos)
+        heurVal = math.dist(my_pos, adv_pos)
+
+        # Count the # of walls that surround the position
+        wallCount = 0
+        x, y = my_pos
+        for wall in chess_board[x][y]:
+            if wall == True:
+                wallCount = wallCount + 1
+
+        heurVal = heurVal + (wallCount * 10)
 
         return heurVal
 
-    # function for finding the best move based on the heuristic
-    def findBestMove(self, allMoves, chess_board, my_pos, adv_pos, max_step):
-        # initialize the best move as the first move
-        min_H_move = allMoves.pop()
-        # calculate the heuristic value
-        min_H = self.heuristic(chess_board, adv_pos, min_H_move)
-        for new_move in allMoves:
-            # go through all the possible values
-            new_H = self.heuristic(chess_board, adv_pos, new_move)
-            # if you find a move with a better heuristic set it as best move
-            if (new_H < min_H):
-                min_H = new_H
-                min_H_move = new_move
-        # return best possible move
-        return min_H_move, min_H
+    def minMax(self, chess_board, prev_move_tup, other_pos, max_step, depth, isMax):
+        if depth <= 0:
+            return self.heuristic(chess_board, other_pos, prev_move_tup[0])
 
-    def minMax(self, chess_board, my_move, adv_pos, max_step, depth, isMax):
-        if depth == 0:
-            return self.heuristic(chess_board, adv_pos, my_move)
-
-        my_pos, _ = my_move
-
-        if not isMax:
-            allMoves = self.getAllMoves(chess_board, my_pos, adv_pos, max_step)
-            minH = 100000
-            for move in allMoves:
-                boardAfterMove = self.setBarrier(chess_board, move)
-                res_H = self.minMax(
-                    boardAfterMove, move, adv_pos, max_step, depth - 1, not isMax)
-                if res_H < minH:
-                    minH = res_H
-            return minH
+        # Do whats best for student_agent
+        if isMax:
+            minH = -100000
+        # Do wahts best for the opponent
         else:
-            allMoves = self.getAllMoves(chess_board, adv_pos, my_pos, max_step)
-            minH = 100000
-            for move in allMoves:
-                boardAfterMove = self.setBarrier(chess_board, move)
-                res_H = self.minMax(
-                    boardAfterMove, move, my_pos, max_step, depth - 1, not isMax)
-                if res_H < minH:
-                    minH = res_H
-            return minH
+            maxH = -100000
+            # simulate opponents move
+            # get all moves that the opponent can make
+            opponentMoves = self.getAllMoves(
+                chess_board, other_pos, prev_move_tup[0], max_step)
+            for move in opponentMoves:
+                boardAfterMove = self.setBarrier(chess_board, prev_move_tup)
+                # chess_board, adv_pos, my_pos
+                temp = self.minMax(
+                    boardAfterMove, move, prev_move_tup[0], max_step, depth - 1, not isMax)
+                maxH = max(temp, maxH)
+            return maxH
+
+    # Create a minMax tree and return the best move
 
     def step(self, chess_board, my_pos, adv_pos, max_step):
         """
@@ -222,8 +210,9 @@ class StudentAgent(Agent):
 
         for move in allMoves:
             # print("heuristic for move: ", move)
+            boardAfterMove = self.setBarrier(chess_board, move)
             resH = self.minMax(
-                chess_board, move, adv_pos, max_step, 0, False)
+                boardAfterMove, move, adv_pos, max_step, 1, False)
             if resH < minH:
                 minH = resH
                 bestMove = move
