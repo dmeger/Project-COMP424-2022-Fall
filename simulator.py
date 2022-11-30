@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--player_1", type=str, default="random_agent")
-    parser.add_argument("--player_2", type=str, default="random_agent")
+    parser.add_argument("--player_2", type=str, default="student_agent")
     parser.add_argument("--board_size", type=int, default=None)
     parser.add_argument(
         "--board_size_min",
@@ -31,8 +31,8 @@ def get_args():
     parser.add_argument("--display_delay", type=float, default=0.4)
     parser.add_argument("--display_save", action="store_true", default=False)
     parser.add_argument("--display_save_path", type=str, default="plots/")
-    parser.add_argument("--autoplay", action="store_true", default=False)
-    parser.add_argument("--autoplay_runs", type=int, default=1000)
+    parser.add_argument("--autoplay", action="store_true", default=True)
+    parser.add_argument("--autoplay_runs", type=int, default=100)
     args = parser.parse_args()
     return args
 

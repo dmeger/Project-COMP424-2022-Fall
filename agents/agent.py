@@ -5,7 +5,7 @@ class Agent:
         """
         self.name = "DummyAgent"
         # Flag to indicate whether the agent can be used to autoplay
-        self.autoplay = False
+        self.autoplay = True
 
     def __str__(self) -> str:
         return self.name
