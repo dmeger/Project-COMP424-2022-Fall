@@ -1,11 +1,36 @@
 # Student agent: Add your own agent here
 from agents.agent import Agent
 from store import register_agent
+from copy import deepcopy
 import sys
 import numpy as np
 import copy
 import math
 import time
+import heapq
+
+class Priority_Queue:
+
+    def __init__(self, item_ls):
+        self.h = []
+        for item in item_ls:
+            heapq.heappush(self.h, item)
+
+    def is_empty(self):
+        return len(self.h) == 0
+
+    def push(self, value, item):
+        heapq.heappush(self.h, (value, item))
+    
+    def pop(self):
+        if not self.is_empty():
+            return heapq.heappop(self.h)
+        return None
+    
+    def get_top(self):
+        if not self.is_empty():
+            return self.h[0]
+        return None, None
 
 class A_Star_Node():
 
@@ -36,8 +61,11 @@ class StudentAgent(Agent):
             "d": 2,
             "l": 3,
         }
+        self.move_num = 0
+        self.game_time = 0
 
-    def distance_to_position(self, my_pos, adv_pos, chess_board, max_dfs_depth=8):
+    # Distance from current position to all squares on the chess_board
+    def distance_to_position(self, my_pos, adv_pos, chess_board, max_dfs_depth=14):
         
         board_size = len(chess_board)
 
@@ -55,13 +83,66 @@ class StudentAgent(Agent):
             if distance >= max_dfs_depth:
                 continue
 
-            for next_position in self.valid_next_position((cur_position, adv_pos, chess_board), False):
+            for next_position in self.valid_next_position(cur_position, adv_pos, chess_board, False):
                 
                 if next_position not in encountered:
                     queue.append([next_position, distance + 1])
                     encountered.add(next_position)
         
         return distances
+
+    def simulate_board(self, move, chess_board, sim):
+
+        board_size = len(chess_board)
+
+        up = 0
+        right = 1
+        down = 2
+        left = 3
+
+        pos = move[0]
+        dir = move[1]
+
+        # Wall Up
+        if dir == up:
+            if sim:
+                chess_board[pos[0]][pos[1]][up] = 1
+                if pos[0] != 0:
+                    chess_board[pos[0]-1][pos[1]][down] = 1
+            else:
+                chess_board[pos[0]][pos[1]][up] = 0
+                if pos[0] != 0:
+                    chess_board[pos[0]-1][pos[1]][down] = 0
+
+        if dir == right:
+            if sim:
+                chess_board[pos[0]][pos[1]][right] = 1
+                if pos[1] != board_size - 1:
+                    chess_board[pos[0]][pos[1] + 1][left] = 1
+            else:
+                chess_board[pos[0]][pos[1]][right] = 0
+                if pos[1] != board_size - 1:
+                    chess_board[pos[0]][pos[1] + 1][left] = 0
+
+        if dir == down:
+            if sim:
+                chess_board[pos[0]][pos[1]][down] = 1
+                if pos[0] != board_size - 1:
+                    chess_board[pos[0] + 1][pos[1]][up] = 1
+            else:
+                chess_board[pos[0]][pos[1]][down] = 0
+                if pos[0] != board_size - 1:
+                    chess_board[pos[0] + 1][pos[1]][up] = 0
+
+        if dir == left:
+            if sim:
+                chess_board[pos[0]][pos[1]][left] = 1
+                if pos[1] != 0:
+                    chess_board[pos[0]][pos[1] - 1][right] = 1
+            else:
+                chess_board[pos[0]][pos[1]][left] = 0
+                if pos[1] != 0:
+                    chess_board[pos[0]][pos[1] - 1][right] = 0    
     
     # Return the heuristic value of a given move
     def utility_of_state(self, my_pos, adv_pos, chess_board):
@@ -71,17 +152,18 @@ class StudentAgent(Agent):
 
         diff = dist - opp_dist
 
-        return np.sum(diff > 0)
+        return np.sum(diff > 0) - np.sum(diff < 0)
 
     def a_star_heuristic(self, my_pos, adv_pos):
         return abs(my_pos[0]-adv_pos[0]) + abs(my_pos[1]-adv_pos[1])
-
-    def a_star(self, chess_board, my_pos, adv_pos, used_squares, max_step):
+    
+    # find shortest path from my position to target position
+    def a_star(self, chess_board, my_pos, target_pos, used_squares, max_step, allow_opp=True, adv_pos=None):
 
         start = A_Star_Node(my_pos)
         start.g = 0
-        start.h = self.a_star_heuristic(my_pos, adv_pos)
-        end     = A_Star_Node(adv_pos)
+        start.h = self.a_star_heuristic(my_pos, target_pos)
+        end     = A_Star_Node(target_pos)
 
         queue = set()
         explored = set()
@@ -112,7 +194,7 @@ class StudentAgent(Agent):
                 # Backtrack through the path till the start point has been reached
                 while current_a_star_node.parent != None:
 
-                    if not current_a_star_node in used_squares:
+                    if not (current_a_star_node.parent.pos in used_squares) and current_a_star_node.parent.parent != None:
                         unique_square = True
 
                     path.append(current_a_star_node.parent.pos)
@@ -125,7 +207,7 @@ class StudentAgent(Agent):
                 return path[::-1]
             
             # Retrieve the neighbours of the current node
-            next_positions = self.valid_next_position((current_a_star_node.pos, adv_pos, chess_board), True)
+            next_positions = self.valid_next_position(current_a_star_node.pos, adv_pos, chess_board, allow_opp)
 
             queued = False
             for child in next_positions:
@@ -135,7 +217,7 @@ class StudentAgent(Agent):
                     queued = True
                     child_node = A_Star_Node(child, current_a_star_node)
                     child_node.g = current_a_star_node.g + 1
-                    child_node.h = self.a_star_heuristic(child_node.pos, adv_pos)
+                    child_node.h = self.a_star_heuristic(child_node.pos, target_pos)
                     queue.add((child_node, child_node.g + child_node.h))
 
             if not queued:
@@ -145,19 +227,20 @@ class StudentAgent(Agent):
                     if child not in explored:
                         child_node = A_Star_Node(child, current_a_star_node)
                         child_node.g = current_a_star_node.g + 1
-                        child_node.h = self.a_star_heuristic(child_node.pos, adv_pos)
+                        child_node.h = self.a_star_heuristic(child_node.pos, target_pos)
                         queue.add((child_node, child_node.g + child_node.h))
         
         return None
 
-    def k_shortest_paths(self, chess_board, my_pos, adv_pos, k, max_step):
+    # Retrieve the k shortest paths from my position to target position
+    def k_shortest_paths(self, chess_board, my_pos, target_pos, k, max_step, allow_opp=True, adv_pos=None):
 
         paths = []
         used_squares = set()
 
         while len(paths) < k:
 
-            path = self.a_star(chess_board, my_pos, adv_pos, used_squares, max_step)
+            path = self.a_star(chess_board, my_pos, target_pos, used_squares, max_step, allow_opp, adv_pos)
             
             if path == None:
                 break
@@ -168,42 +251,121 @@ class StudentAgent(Agent):
             paths.append(path)
 
         return sorted(paths, key=len)
-    
-    # Generate list of moves from the paths we selected
-    def ordered_moves(self, paths, max_step):
 
-        moves = []
+    # Generate list of moves from the paths we selected
+    def get_moves(self, paths, max_step, chess_board):
+
+        optimal_moves = set()
+        all_moves = set()
 
         for path in paths:
             
             i = min(len(path)-2, max_step)
 
             while i >= 0:
-                
+                    
                 # Next block is to the right
                 if path[i+1][1] > path[i][1]:
                     move = (path[i], 1)
-                    if move not in moves:
-                        moves.append(move)
+                    optimal_moves.add(move)
                 # Next block is to the left
                 elif path[i+1][1] < path[i][1]:
                     move = (path[i], 3)
-                    if move not in moves:
-                        moves.append(move)
+                    optimal_moves.add(move)
                 # Next block is above
                 elif path[i+1][0] < path[i][0]:
                     move = (path[i], 0)
-                    if move not in moves:
-                        moves.append(move)
+                    optimal_moves.add(move)
                 # Next block is below
                 else:
                     move = (path[i], 2)
-                    if move not in moves:
-                        moves.append(move)
+                    optimal_moves.add(move)
+
+                for j in range(4):
+                        if not chess_board[path[i][0]][path[i][1]][j]:
+                            move = (path[i], j)
+                            all_moves.add(move)
+
                 i -= 1
 
-        return moves
+        return all_moves, optimal_moves
 
+    def random_move(self, chess_board, my_pos, adv_pos, max_step):
+
+        # Moves (Up, Right, Down, Left)
+        ori_pos = deepcopy(my_pos)
+        moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
+        steps = np.random.randint(0, max_step + 1)
+
+        # Random Walk
+        for _ in range(steps):
+            r, c = my_pos
+            dir = np.random.randint(0, 4)
+            m_r, m_c = moves[dir]
+            my_pos = (r + m_r, c + m_c)
+
+            # Special Case enclosed by Adversary
+            k = 0
+            while chess_board[r, c, dir] or my_pos == adv_pos:
+                k += 1
+                if k > 300:
+                    break
+                dir = np.random.randint(0, 4)
+                m_r, m_c = moves[dir]
+                my_pos = (r + m_r, c + m_c)
+
+            if k > 300:
+                my_pos = ori_pos
+                break
+
+        # Put Barrier
+        dir = np.random.randint(0, 4)
+        r, c = my_pos
+        while chess_board[r, c, dir]:
+            dir = np.random.randint(0, 4)
+
+        return my_pos, dir
+
+    # Return list of valid next positions which can be reached by 1 step
+    def valid_next_position(self, my_pos, adv_pos, chess_board, allow_opp):
+        
+        board_size = len(chess_board)
+        next_pos_ls = []
+
+        # Move Up
+        # Check whether leaving upper border of map or if there is a barrier above block
+        if my_pos[0] - 1 >= 0 and not chess_board[my_pos[0]][my_pos[1]][0]:
+
+            # If we are not searching for opponent the opponent acts as a wall
+            if allow_opp or (my_pos[0] - 1, my_pos[1]) != adv_pos:
+                next_pos_ls.append((my_pos[0] - 1, my_pos[1]))
+
+        # Move Down
+        # Check whether leaving lower border of map or if there is a barrier below block
+        if my_pos[0] + 1 < board_size  and not chess_board[my_pos[0]][my_pos[1]][2]:
+
+            # If we are not searching for opponent the opponent acts as a wall
+            if allow_opp or (my_pos[0] + 1, my_pos[1]) != adv_pos:
+                next_pos_ls.append((my_pos[0] + 1, my_pos[1]))
+
+        # Move Right
+        # Check whether leaving right border of map or if there is a barrier to the right
+        if my_pos[1] + 1 < board_size and not chess_board[my_pos[0]][my_pos[1]][1]:
+
+            # If we are not searching for opponent the opponent acts as a wall
+            if allow_opp or (my_pos[0], my_pos[1] + 1) != adv_pos:
+                next_pos_ls.append((my_pos[0], my_pos[1] + 1))
+        
+        # Move Left
+        # Check whether leaving left border of map or if there is a barrier to the left
+        if my_pos[1] - 1 >= 0 and not chess_board[my_pos[0]][my_pos[1]][3]:
+
+            # If we are not searching for opponent the opponent acts as a wall
+            if allow_opp or (my_pos[0], my_pos[1] - 1) != adv_pos:
+                next_pos_ls.append((my_pos[0], my_pos[1] - 1))
+
+        return next_pos_ls
+    
     # Copied and adjusted code from world.py
     # Prof said we could do this https://edstem.org/us/courses/28046/discussion/2187454
     def check_endgame(self, my_pos, adv_pos, chess_board):
@@ -261,7 +423,8 @@ class StudentAgent(Agent):
         
         # returns 1 if our agent wins and 0 if we lose?
         return True, p0_score, p1_score
-
+    
+    # Determine the Game Ending qualities of given moves
     def get_game_ending_moves(self, adv_pos, valid_moves, chess_board):
 
         winning_moves = []
@@ -272,7 +435,6 @@ class StudentAgent(Agent):
         for move in valid_moves:
             self.simulate_board(move, chess_board, sim=True)
             game_done, p0_score, p1_score = self.check_endgame(move[0], adv_pos, chess_board)
-            self.simulate_board(move, chess_board, sim=True)
 
             if game_done and p0_score > p1_score:
                 winning_moves.append(move)
@@ -282,187 +444,143 @@ class StudentAgent(Agent):
                 tie_moves.append(move)
             else:
                 remaining.append(move)
-
-        return winning_moves, suicide_moves, tie_moves, remaining
+                #score = self.utility_of_state(move[0], adv_pos, chess_board)    
+                #remaining.append((-score, move))
             
-
-    def minimax(self, my_pos, adv_pos, chess_board, alpha, beta, max_player, max_step, depth, max_depth=3):
-
-        # Terminal Node
-        if depth == max_depth:
-            
-            print("Terminal node reached")
-            value_of_board = 0
-            if max_player:
-                value_of_board = self.utility_of_state(my_pos, adv_pos, chess_board)
-            else:
-                value_of_board = self.utility_of_state(adv_pos, my_pos, chess_board)
-
-            return None, value_of_board
-
-        if max_player:
-            
-            max_move = None
-            path_ls = self.k_shortest_paths(chess_board, my_pos, adv_pos, 5, max_step)
-            valid_move_ls = self.ordered_moves(path_ls, max_step)
-            winning_moves, suicide_moves, tie_moves, remaining_moves = self.get_game_ending_moves(adv_pos, valid_move_ls, chess_board)
-
-            if len(path_ls) == 0:
-                game_done, p0_score, p1_score = self.check_endgame(my_pos, adv_pos, chess_board)
-                if game_done and p0_score > p1_score:
-                    return None, 1000
-                if game_done and p1_score > p0_score:
-                    return None, -1000
-                
-                return None, 0 
-
-            if len(winning_moves) != 0:
-                return winning_moves[0], 1000
-            
-            max_val = -math.inf
-            for move in remaining_moves:
-                self.simulate_board(move, chess_board, sim=True)
-                throwaway, value = self.minimax(adv_pos, move[0], chess_board, alpha, beta, False, max_step, depth+1, max_depth)
-                self.simulate_board(move, chess_board, sim=False)
-                if value > max_val:
-                    max_move = move
-                max_val = max(max_val, value)
-                alpha = max(alpha, max_val)
-                if beta <= alpha:
-                    # Prune
-                    break
-            
-            if max_val < 0 and len(tie_moves) != 0:
-                return tie_moves[0], 0
-
-            if len(suicide_moves) == len(valid_move_ls):
-                # Oops, we lost
-                return suicide_moves[0], -1000
-
-            return max_move, max_val
-        # Minimum player
-        else:
-            
-            path_ls = self.k_shortest_paths(chess_board, my_pos, adv_pos, 5, max_step)                
-            valid_move_ls = self.ordered_moves(path_ls, max_step)
-            winning_moves, suicide_moves, tie_moves, remaining_moves = self.get_game_ending_moves(adv_pos, valid_move_ls, chess_board)
-            
-            if len(winning_moves) != 0:
-                return winning_moves[0], -1000
-            
-            min_val = math.inf
-
-            for move in remaining_moves:
-                self.simulate_board(move, chess_board, sim=True)
-                throwaway, value = self.minimax(adv_pos, move[0], chess_board, alpha, beta, True, max_step, depth+1, max_depth)
-                self.simulate_board(move, chess_board, sim=False)
-                min_val = min(min_val, value)
-                beta = min(beta, min_val)
-                if beta <= alpha:
-                    # Prune
-                    break
-
-            if min_val > 0 and len(tie_moves) != 0:
-                return tie_moves[0], 0
-
-            return None, min_val
-
-    # Return list of valid next positions which can be reached by 1 step
-    def valid_next_position(self, state, allow_opp):
-
-        # Retrieve game state at current point of search    
-        position, opponent_position, chess_board = state
-
-        board_size = len(chess_board)
-        next_pos_ls = []
-
-        # Move Up
-        # Check whether leaving upper border of map or if there is a barrier above block
-        if position[0] - 1 >= 0 and not chess_board[position[0]][position[1]][0]:
-
-            # If we are not searching for opponent the opponent acts as a wall
-            if allow_opp or (position[0] - 1, position[1]) != opponent_position:
-                next_pos_ls.append((position[0] - 1, position[1]))
-
-        # Move Down
-        # Check whether leaving lower border of map or if there is a barrier below block
-        if position[0] + 1 < board_size  and not chess_board[position[0]][position[1]][2]:
-
-            # If we are not searching for opponent the opponent acts as a wall
-            if allow_opp or (position[0] + 1, position[1]) != opponent_position:
-                next_pos_ls.append((position[0] + 1, position[1]))
-
-        # Move Right
-        # Check whether leaving right border of map or if there is a barrier to the right
-        if position[1] + 1 < board_size and not chess_board[position[0]][position[1]][1]:
-
-            # If we are not searching for opponent the opponent acts as a wall
-            if allow_opp or (position[0], position[1] + 1) != opponent_position:
-                next_pos_ls.append((position[0], position[1] + 1))
+            self.simulate_board(move, chess_board, sim=False)
         
-        # Move Left
-        # Check whether leaving left border of map or if there is a barrier to the left
-        if position[1] - 1 >= 0 and not chess_board[position[0]][position[1]][3]:
+        return winning_moves, suicide_moves, tie_moves, remaining
 
-            # If we are not searching for opponent the opponent acts as a wall
-            if allow_opp or (position[0], position[1] - 1) != opponent_position:
-                next_pos_ls.append((position[0], position[1] - 1))
+    def will_it_lose_me_the_game(self, move, adv_pos, chess_board, max_step):
 
-        return next_pos_ls
+        my_pos, dir = move
+        self.simulate_board(move, chess_board, sim=True)
+        adv_path_ls = self.k_shortest_paths(chess_board, adv_pos, move[0], 3, max_step)
+        allowed_adv_moves, optimal_adv_moves = self.get_moves(adv_path_ls, max_step, chess_board)
 
-    def simulate_board(self, move, chess_board, sim):
+        adv_winning_moves, adv_losing_moves, tie_moves, other_moves = self.get_game_ending_moves(my_pos, allowed_adv_moves, chess_board)
+        self.simulate_board(move, chess_board, sim=False)
 
-        board_size = len(chess_board)
+        if len(adv_winning_moves) != 0:
+            return 1, 0
+        
+        return 0, len(adv_losing_moves)
 
-        up = 0
-        right = 1
-        down = 2
-        left = 3
+    def best_random_move(self, my_pos, adv_pos, chess_board, max_step):
+        
+        # Generate random move
+        best_val = -math.inf
+        best_move = None
+        for i in range(50):
+            random_move = self.random_move(chess_board, my_pos, adv_pos, max_step)
+            self.simulate_board(random_move, chess_board, sim=True)
+            game_end, p0_score, p1_score = self.check_endgame(my_pos, adv_pos, chess_board)
 
-        pos = move[0]
-        dir = move[1]
-
-        # Wall Up
-        if dir == up:
-            if sim:
-                chess_board[pos[0]][pos[1]][up] = 1
-                if pos[0] != 0:
-                    chess_board[pos[0]-1][pos[1]][down] = 1
+            if not game_end:
+                val = self.utility_of_state(my_pos, adv_pos, chess_board)
+                if val > best_val:
+                    best_move = random_move
+                    best_val = val
+            elif p0_score > p1_score:
+                return 1000, random_move
+            elif p0_score == p1_score:
+                if -500 > best_val:
+                    best_move = random_move
+                    best_val = -500
             else:
-                chess_board[pos[0]][pos[1]][up] = 0
-                if pos[0] != 0:
-                    chess_board[pos[0]-1][pos[1]][down] = 0
+                if -1000 > best_val:
+                    best_move = random_move
+                    best_val = -1000
+            self.simulate_board(random_move, chess_board, sim=False)
+        
+        return best_val, best_move
 
-        if dir == right:
-            if sim:
-                chess_board[pos[0]][pos[1]][right] = 1
-                if pos[1] != board_size - 1:
-                    chess_board[pos[0]][pos[1] + 1][left] = 1
+    def get_best_move(self, my_pos, adv_pos, chess_board, max_step):
+
+        path_ls = self.k_shortest_paths(chess_board, my_pos, adv_pos, 3, max_step)
+        allowed_moves, optimal_moves = self.get_moves(path_ls, max_step, chess_board)
+
+        winning_moves, losing_moves, tie_moves, other_moves = self.get_game_ending_moves(adv_pos, allowed_moves, chess_board)
+        
+        if len(winning_moves) != 0:
+            return winning_moves[0]
+
+        value_queue = Priority_Queue([])
+        for move in other_moves:
+            self.simulate_board(move, chess_board, sim=True)
+            value = self.utility_of_state(my_pos, adv_pos, chess_board)
+            value_queue.push(-value, move)
+            self.simulate_board(move, chess_board, sim=False)
+        
+        if value_queue.is_empty():
+            random_val, random_move = self.best_random_move(my_pos, adv_pos, chess_board, max_step)
+            if random_val <= -1000 and len(tie_moves) != 0:
+                return tie_moves[0]
+
+            return random_move
+        
+        top_val, top_move = value_queue.pop()
+        
+        if top_val != None:
+            top_val = -top_val
+
+        if top_val < 0:
+            
+            # Want to run away
+            target_pos = ((len(chess_board) - my_pos[0] - 1)%len(chess_board), (len(chess_board) - my_pos[1] - 1)%len(chess_board))
+            # Path to runaway with opponent acting as a wall
+            runaway_paths = self.k_shortest_paths(chess_board, my_pos, target_pos, 1, max_step, allow_opp=False, adv_pos=adv_pos)
+
+            new_moves, new_optimal_moves = self.get_moves(runaway_paths, max_step, chess_board)
+
+            new_winning_moves, new_losing_moves, new_tie_moves, new_other_moves = self.get_game_ending_moves(adv_pos, new_moves, chess_board)
+
+            if len(new_winning_moves) != 0:
+                return new_winning_moves[0]
+
+            for new_move in new_other_moves:
+                self.simulate_board(new_move, chess_board, sim=True)
+                new_move_val = self.utility_of_state(my_pos, adv_pos, chess_board)
+                value_queue.push(-new_move_val, new_move)
+                self.simulate_board(new_move, chess_board, sim=False)
+        
+        if top_val != None and top_move != None:            
+            value_queue.push(-top_val, top_move)
+
+        # No good moves to take, try to take a non-losing random step
+        if value_queue.is_empty():
+            random_val, random_move = self.best_random_move(my_pos, adv_pos, chess_board, max_step)
+            if random_val <= -1000 and len(tie_moves) != 0:
+                return tie_moves[0]
+            return random_move
+
+        next_val, next_move = value_queue.pop()
+        next_val = - next_val
+        final_queue = Priority_Queue([])
+        can_lose, bonus = self.will_it_lose_me_the_game(next_move, adv_pos, chess_board, max_step)
+        if not can_lose:
+            final_queue.push(-(next_val + bonus), next_move)
+        
+        while not value_queue.is_empty():
+            following_val, following_move = value_queue.pop()
+            following_val = -following_val
+            if following_val != next_val:
+                break
             else:
-                chess_board[pos[0]][pos[1]][right] = 0
-                if pos[1] != board_size - 1:
-                    chess_board[pos[0]][pos[1] + 1][left] = 0
+                next_val, next_move = following_val, following_move
+                can_lose, bonus = self.will_it_lose_me_the_game(next_move, adv_pos, chess_board, max_step)
+                if not can_lose:
+                    final_queue.push(-(next_val + bonus), next_move)
 
-        if dir == down:
-            if sim:
-                chess_board[pos[0]][pos[1]][down] = 1
-                if pos[0] != board_size - 1:
-                    chess_board[pos[0] + 1][pos[1]][up] = 1
-            else:
-                chess_board[pos[0]][pos[1]][down] = 0
-                if pos[0] != board_size - 1:
-                    chess_board[pos[0] + 1][pos[1]][up] = 0
+        if not final_queue.is_empty():
+            best_val, best_move = final_queue.pop()
+            return best_move
 
-        if dir == left:
-            if sim:
-                chess_board[pos[0]][pos[1]][left] = 1
-                if pos[1] != 0:
-                    chess_board[pos[0]][pos[1] - 1][right] = 1
-            else:
-                chess_board[pos[0]][pos[1]][left] = 0
-                if pos[1] != 0:
-                    chess_board[pos[0]][pos[1] - 1][right] = 0                                                
+        random_val, random_move = self.best_random_move(my_pos, adv_pos, chess_board, max_step)
+        if random_val <= -1000 and len(tie_moves) != 0:
+            return tie_moves[0]
 
+        return random_move
     
     def step(self, chess_board, my_pos, adv_pos, max_step):
         """
@@ -479,10 +597,8 @@ class StudentAgent(Agent):
 
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
-        start_time = time.time()
+        self.game_time = time.time()
+        max_move = self.get_best_move(my_pos, adv_pos, chess_board, max_step)
+        print("--- %s seconds ---" % (time.time() - self.game_time))
 
-        # Run minimax with alpha beta pruning 
-        max_move, max_val = self.minimax(my_pos, adv_pos, chess_board, -math.inf, math.inf, True, max_step, 1, 5)
-        print("--- %s seconds ---" % (time.time() - start_time))
-
-        return max_move[0], max_move[1]
+        return max_move
