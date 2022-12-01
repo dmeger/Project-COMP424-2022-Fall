@@ -291,6 +291,7 @@ class StudentAgent(Agent):
         # Terminal Node
         if depth == max_depth:
             
+            print("Terminal node reached")
             value_of_board = 0
             if max_player:
                 value_of_board = self.utility_of_state(my_pos, adv_pos, chess_board)
@@ -305,6 +306,15 @@ class StudentAgent(Agent):
             path_ls = self.k_shortest_paths(chess_board, my_pos, adv_pos, 5, max_step)
             valid_move_ls = self.ordered_moves(path_ls, max_step)
             winning_moves, suicide_moves, tie_moves, remaining_moves = self.get_game_ending_moves(adv_pos, valid_move_ls, chess_board)
+
+            if len(path_ls) == 0:
+                game_done, p0_score, p1_score = self.check_endgame(my_pos, adv_pos, chess_board)
+                if game_done and p0_score > p1_score:
+                    return None, 1000
+                if game_done and p1_score > p0_score:
+                    return None, -1000
+                
+                return None, 0 
 
             if len(winning_moves) != 0:
                 return winning_moves[0], 1000
@@ -342,7 +352,7 @@ class StudentAgent(Agent):
             
             min_val = math.inf
 
-            for move in valid_move_ls:
+            for move in remaining_moves:
                 self.simulate_board(move, chess_board, sim=True)
                 throwaway, value = self.minimax(adv_pos, move[0], chess_board, alpha, beta, True, max_step, depth+1, max_depth)
                 self.simulate_board(move, chess_board, sim=False)
@@ -472,7 +482,7 @@ class StudentAgent(Agent):
         start_time = time.time()
 
         # Run minimax with alpha beta pruning 
-        max_move, max_val = self.minimax(my_pos, adv_pos, chess_board, -math.inf, math.inf, True, max_step, 1, 3)
+        max_move, max_val = self.minimax(my_pos, adv_pos, chess_board, -math.inf, math.inf, True, max_step, 1, 5)
         print("--- %s seconds ---" % (time.time() - start_time))
 
         return max_move[0], max_move[1]
