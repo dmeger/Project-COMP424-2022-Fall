@@ -13,35 +13,28 @@ logger = logging.getLogger(__name__)
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--player_1", type=str, default="student_agent")
-
-
-<< << << < HEAD
-parser.add_argument("--player_2", type=str, default="sample_agent")
-parser.add_argument("--board_size", type=int, default=8)
-== == == =
-parser.add_argument("--player_2", type=str, default="random_agent")
-parser.add_argument("--board_size", type=int, default=None)
->>>>>> > origin/bela-attempt
-parser.add_argument(
-    "--board_size_min",
-    type=int,
-    default=6,
-    help="In autoplay mode, the minimum board size",
-)
-parser.add_argument(
-    "--board_size_max",
-    type=int,
-    default=12,
-    help="In autoplay mode, the maximum board size",
-)
-parser.add_argument("--display", action="store_true", default=True)
-parser.add_argument("--display_delay", type=float, default=0.4)
-parser.add_argument("--display_save", action="store_true", default=False)
-parser.add_argument("--display_save_path", type=str, default="plots/")
-parser.add_argument("--autoplay", action="store_true", default=False)
-parser.add_argument("--autoplay_runs", type=int, default=20)
-args = parser.parse_args()
-return args
+    parser.add_argument("--player_2", type=str, default="sample_agent")
+    parser.add_argument("--board_size", type=int, default=8)
+    parser.add_argument(
+        "--board_size_min",
+        type=int,
+        default=6,
+        help="In autoplay mode, the minimum board size",
+    )
+    parser.add_argument(
+        "--board_size_max",
+        type=int,
+        default=12,
+        help="In autoplay mode, the maximum board size",
+    )
+    parser.add_argument("--display", action="store_true", default=True)
+    parser.add_argument("--display_delay", type=float, default=0.4)
+    parser.add_argument("--display_save", action="store_true", default=False)
+    parser.add_argument("--display_save_path", type=str, default="plots/")
+    parser.add_argument("--autoplay", action="store_true", default=False)
+    parser.add_argument("--autoplay_runs", type=int, default=20)
+    args = parser.parse_args()
+    return args
 
 
 class Simulator:
