@@ -21,6 +21,83 @@ class StudentAgent(Agent):
             "l": 3,
         }
 
+    def is_valid_move(self, chess_board, start_pos, end_pos, board_dir, adv_pos, max_step):
+
+        r, c = end_pos
+        # print("r " + str(r))
+        # print("c " + str(c))
+        if r < 0 or r >= len(chess_board) or c < 0 or c >= len(chess_board):
+            return False
+
+        if chess_board[r, c, board_dir] == True:
+            return False
+
+        if end_pos == adv_pos:
+            return False
+
+        hor_dist = abs(end_pos[0] - start_pos[0])
+        ver_dist = abs(end_pos[1] - start_pos[1])
+        moves = hor_dist + ver_dist
+
+        if moves > max_step:
+            return False
+
+        return True
+
+    def get_legal_moves(self, chess_board, my_pos, adv_pos, max_step):
+        legal = []
+        for i in range(my_pos[0], my_pos[0] + max_step):
+            for j in range(my_pos[1], my_pos[0] + max_step):
+                for k in range(0, 4):
+                    if self.is_valid_move(chess_board, my_pos, (i, j), k, adv_pos, max_step):
+                        legal.append(((i, j), k))
+        return legal
+
+
+    def eval_move(self, chess_board, start_pos, end_pos, board_dir, adv_pos):
+
+        points = 0
+
+        start_to_adv_x = abs(adv_pos[0] - start_pos[0])
+        start_to_adv_y = abs(adv_pos[1] - start_pos[1])
+        start_to_adv_dist = start_to_adv_x + start_to_adv_y
+
+        end_to_adv_x = abs(adv_pos[0] - end_pos[0])
+        end_to_adv_y = abs(adv_pos[1] - end_pos[1])
+        end_to_adv_dist = end_to_adv_x + end_to_adv_y
+
+        if end_to_adv_dist < start_to_adv_dist:
+            points += 10
+        else:
+            points -= 10
+
+        adv_x_rotation = adv_pos[0] - end_pos[0]
+        adv_y_rotation = adv_pos[1] - end_pos[1]
+
+        if adv_x_rotation < 0:
+            if board_dir == 0:
+                points += 5
+            else:
+                points -= 5
+
+        if adv_x_rotation > 0:
+            if board_dir == 2:
+                points += 5
+            else:
+                points -= 5
+
+        if adv_y_rotation > 0:
+            if board_dir == 1:
+                points += 5
+            else:
+                points -= 5
+        if adv_y_rotation < 0:
+            if board_dir == 3:
+                points += 5
+            else: points -= 5
+
+        return chess_board, points
+
     def step(self, chess_board, my_pos, adv_pos, max_step):
         """
         Implement the step function of your agent here.
