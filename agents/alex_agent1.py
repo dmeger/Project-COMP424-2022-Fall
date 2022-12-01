@@ -1,4 +1,3 @@
-# Student agent: Add your own agent here
 from agents.agent import Agent
 from store import register_agent
 import sys
@@ -7,8 +6,8 @@ import copy
 import time
 
 
-@register_agent("student_agent")
-class StudentAgent(Agent):
+@register_agent("alex_agent1")
+class AlexAgent(Agent):
     """
     A dummy class for your implementation. Feel free to use this class to
     add any helper functionalities needed for your agent.
@@ -16,8 +15,8 @@ class StudentAgent(Agent):
     max_depth = 3
 
     def __init__(self):
-        super(StudentAgent, self).__init__()
-        self.name = "StudentAgent"
+        super(AlexAgent, self).__init__()
+        self.name = "AlexAgent"
         self.dir_map = {
             "u": 0,
             "r": 1,
