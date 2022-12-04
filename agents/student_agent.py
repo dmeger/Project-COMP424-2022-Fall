@@ -47,12 +47,14 @@ class StudentAgent(Agent):
         best_move = max(possible_moves, key=move_rater)
         return best_move
 
-    def move_rating(self, chess_board, adv_pos, max_step, move):
-        board_after_move = deepcopy(chess_board)
+    def move_rating(self, board, adv_pos, max_step, move):
         (x, y), d = move
-        board_after_move[x, y, d] = True
-        board_after_move[x + self.moves[d][0], y + self.moves[d][1], (d+2)%4] = True
-        return self.board_rating(board_after_move, (x,y), adv_pos, max_step)
+        board[x, y, d] = True
+        board[x + self.moves[d][0], y + self.moves[d][1], (d+2)%4] = True
+        rating = self.board_rating(board, (x,y), adv_pos, max_step)
+        board[x, y, d] = False
+        board[x + self.moves[d][0], y + self.moves[d][1], (d+2)%4] = False
+        return rating
 
     def board_rating(self, board, my_pos, adv_pos, max_step):
         # rating will be the number of moves we have availible - number of moves openent has availible
