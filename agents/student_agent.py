@@ -7,6 +7,8 @@ import sys
 import random
 import math
 
+MAX_DEPTH = 4
+
 
 @register_agent("student_agent")
 class StudentAgent(Agent):
@@ -19,6 +21,7 @@ class StudentAgent(Agent):
         super(StudentAgent, self).__init__()
         self.name = "StudentAgent"
         self.autoplay = True
+        self.max_depth=MAX_DEPTH
         self.moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
         self.dir_map = {
             "u": 0,
@@ -43,18 +46,28 @@ class StudentAgent(Agent):
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
         possible_moves = self.get_possible_moves_from(chess_board, my_pos, adv_pos, max_step)
-        move_rater = partial(self.move_rating, chess_board, adv_pos, max_step)
-        best_move = max(possible_moves, key=move_rater)
+        # board = chess_board, my_pos=my_pos, adv_pos=adv_pos, max_step-max_step, turn=0, current_depth=0, alpha=-999, beta=999
+        move_rater = partial(self.move_rating, chess_board, my_pos, adv_pos, max_step, 0, 0, -999, 999)
+        best_move = max(possible_moves, key=lambda x : move_rater(x)[0])
         return best_move
 
-    def move_rating(self, chess_board, adv_pos, max_step, move):
-        board_after_move = deepcopy(chess_board)
+    def move_rating(self, board, my_pos, adv_pos, max_step, turn, current_depth, alpha, beta, move):
+        # apply move to board
         (x, y), d = move
-        board_after_move[x, y, d] = True
-        board_after_move[x + self.moves[d][0], y + self.moves[d][1], (d+2)%4] = True
-        return self.board_rating(board_after_move, (x,y), adv_pos, max_step)
+        board[x, y, d] = True
+        board[x + self.moves[d][0], y + self.moves[d][1], (d+2)%4] = True
+        # get rating for move
+        if turn==0:
+            rating, alpha, beta=self.board_rating(board, (x,y), adv_pos, max_step, 1, current_depth+1, alpha, beta)
+        else:
+            rating, alpha, beta=self.board_rating(board, my_pos, (x,y), max_step, 0, current_depth+1, alpha, beta)
+        # undo moves
+        board[x, y, d] = False
+        board[x + self.moves[d][0], y + self.moves[d][1], (d+2)%4] = False
+        # return rating
+        return rating, alpha, beta
 
-    def board_rating(self, board, my_pos, adv_pos, max_step):
+    def board_rating(self, board, my_pos, adv_pos, max_step, turn, current_depth):
         # rating will be the number of moves we have availible - number of moves openent has availible
         is_game_over, my_score, adv_score = self.check_endgame(board, my_pos, adv_pos)
         
@@ -65,10 +78,50 @@ class StudentAgent(Agent):
             else:
                 return -999
         
+        # if max depth use naive estimator
+        if current_depth > self.max_depth:
+            return self.naive_board_estimator(board, my_pos, adv_pos, max_step)
+
+        if turn==0:
+            possible_moves = self.get_possible_moves_from(board, my_pos, adv_pos, max_step)
+        else:
+            possible_moves = self.get_possible_moves_from(board, adv_pos, my_pos, max_step)
+
+        # shuffle possible moves
+        possible_moves = random.shuffle(possible_moves)
+
+        for move in possible_moves:
+            if turn==0:
+                best_score = -999
+            else:
+                best_score = 999
+            
+            move_score, alpha, beta = self.move_rating(board=board, my_pos=my_pos, adv_pos=adv_pos, max_step=max_step, turn=turn, current_depth=current_depth, alpha=alpha, beta=beta, move=move)
+            # alpha-beta pruning
+            if turn==0:
+                if move_score > best_score:
+                    best_score = move_score
+                # if move_score < alpha:
+                #     break
+            else:
+                if move_score < best_score:
+                    best_score = move_score
+                # if move_score > beta:
+                #     break
+        
+        if turn==0:
+            beta = min(beta, best_score)
+        else:
+            alpha = max(alpha, best_score)
+        
+        return best_score, alpha, beta
+
+    def naive_board_estimator(self, board, my_pos, adv_pos, max_step):
+        # naive board value estimation, based on number of possible moves
         my_possible_moves = len(self.get_possible_moves_from(board, my_pos, adv_pos, max_step))
         adv_possible_moves = len(self.get_possible_moves_from(board, adv_pos, my_pos, max_step))
         
-        return my_possible_moves - adv_possible_moves
+        return my_possible_moves-adv_possible_moves
 
     def get_possible_moves_from(self, chess_board, pos, adv_pos, steps, visited=None):
         if visited is None:
