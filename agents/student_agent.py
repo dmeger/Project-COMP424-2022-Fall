@@ -56,6 +56,15 @@ class StudentAgent(Agent):
 
     def board_rating(self, board, my_pos, adv_pos, max_step):
         # rating will be the number of moves we have availible - number of moves openent has availible
+        is_game_over, my_score, adv_score = self.check_endgame(board, my_pos, adv_pos)
+        
+        # if position results in game ending, return winner
+        if is_game_over:
+            if my_score > adv_score:
+                return 999
+            else:
+                return -999
+        
         my_possible_moves = len(self.get_possible_moves_from(board, my_pos, adv_pos, max_step))
         adv_possible_moves = len(self.get_possible_moves_from(board, adv_pos, my_pos, max_step))
         
@@ -92,6 +101,47 @@ class StudentAgent(Agent):
         
         # remove duplicates
         return list(set(possible_moves))
+
+    def check_endgame(self, board, my_pos, adv_pos):
+        # check board to identify if the game is ended (use code from other file)
+        board_size = board.shape[0]
+
+        # Union-Find
+        father = dict()
+        for r in range(board_size):
+            for c in range(board_size):
+                father[(r, c)] = (r, c)
+
+        def find(pos):
+            if father[pos] != pos:
+                father[pos] = find(father[pos])
+            return father[pos]
+
+        def union(pos1, pos2):
+            father[pos1] = pos2
+
+        for r in range(board_size):
+            for c in range(board_size):
+                for dir, move in enumerate(
+                    self.moves[1:3]
+                ):  # Only check down and right
+                    if board[r, c, dir + 1]:
+                        continue
+                    pos_a = find((r, c))
+                    pos_b = find((r + move[0], c + move[1]))
+                    if pos_a != pos_b:
+                        union(pos_a, pos_b)
+
+        for r in range(board_size):
+            for c in range(board_size):
+                find((r, c))
+        my_r = find(tuple(my_pos))
+        adv_r = find(tuple(adv_pos))
+        my_score = list(father.values()).count(my_r)
+        adv_score = list(father.values()).count(adv_r)
+        if my_r == adv_r:
+            return False, my_score, adv_score
+        return True, my_score, adv_score
 
     def in_board(self, chess_board, pos):
         return 0 <= pos[0] < chess_board.shape[0] and 0 <= pos[1] < chess_board.shape[1]
