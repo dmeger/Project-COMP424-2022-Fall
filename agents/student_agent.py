@@ -1,12 +1,6 @@
 # Student agent: Add your own agent here
 from agents.agent import Agent
 from store import register_agent
-from copy import deepcopy
-from functools import partial
-import sys
-import random
-import math
-import logging
 
 MAX_DEPTH = 2
 
@@ -46,167 +40,130 @@ class StudentAgent(Agent):
 
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
-        alpha=-999
-        beta=999
-        
-        possible_moves = self.get_possible_moves_from(chess_board, my_pos, adv_pos, max_step)
-        
-        best_move_rating=-1000
-        best_move=possible_moves[0]
-
-        move_ratings = [self.move_rating(chess_board, my_pos, adv_pos, max_step, move, turn=0, alpha=alpha, beta=beta) for move in possible_moves]
-        
-        for i, move in enumerate(possible_moves):
-            move_rating = move_ratings[i]
-            if move_rating > best_move_rating:
-                best_move_rating = move_rating
-                best_move = move
-
-        print(f"move ratings: {move_ratings}, max: {max(move_ratings)}")
-        print(f"playing move with rating {best_move_rating}")
+        best_move, rating = self.min_max(chess_board, my_pos, adv_pos, max_step+1, 0) # I could not tell you why its max step + 1 but here we are
+        # print(f"move rating : {rating}")
         return best_move
 
-    def move_rating(self, board, my_pos, adv_pos, max_step, move, turn, alpha, beta, current_depth=0):
+    def rate_move(self, board, my_pos, adv_pos, max_step, move, turn, alpha, beta, current_depth=0):
         # apply move to board
         (x, y), d = move
-        boardcopy = deepcopy(board)
-        boardcopy[x, y, d] = True
-        boardcopy[x + self.moves[d][0], y + self.moves[d][1], (d+2)%4] = True
-        # get rating for move
-        if turn==0:
-            rating= self.board_rating(boardcopy, (x,y), adv_pos, max_step, turn=1, alpha=alpha, beta=beta, current_depth=current_depth+1)
-        elif turn==1:
-            rating=self.board_rating(boardcopy, my_pos, (x,y), max_step, turn=0, alpha=alpha, beta=beta, current_depth=current_depth+1)
-        # return rating
-        return rating
-
-    def board_rating(self, board, my_pos, adv_pos, max_step, turn, current_depth, alpha, beta):
-        # rating will be the number of moves we have availible - number of moves openent has availible
+        board[x, y, d] = True
+        board[x + self.moves[d][0], y + self.moves[d][1], (d+2)%4] = True
+        
+        # check endgame
         is_game_over, my_score, adv_score = self.check_endgame(board, my_pos, adv_pos)
         
-        # if position results in game ending, return winner
+        # if position results in game ending, return score
         if is_game_over:
+            # return board to original position
+            board[x, y, d] = False
+            board[x + self.moves[d][0], y + self.moves[d][1], (d+2)%4] = False
+            
             if my_score > adv_score:
-                if turn==1:
-                    print("\n found winning move \n")
                 return 100
             elif my_score < adv_score:
-                if turn==0:
-                    print("\n found winning move \n")
                 return -100
             else:
                 return 0
         
-        # if max depth use naive estimator
-        if current_depth > self.max_depth:
-            return self.naive_board_estimator(board, my_pos, adv_pos, max_step)
+        # if out of depth
+        if current_depth >= self.max_depth:
+            score = self.naive_board_estimator(board, my_pos, adv_pos, max_step)
+            board[x, y, d] = False
+            board[x + self.moves[d][0], y + self.moves[d][1], (d+2)%4] = False
+            return score
+        
+        # get rating for move
+        if turn==0:
+            my_pos = (x,y)
+            _, rating=self.min_max(board, my_pos, adv_pos, max_step, 1, alpha=alpha, beta=beta, current_depth=current_depth)
+        
+        elif turn==1:
+            adv_pos = (x,y)
+            _, rating=self.min_max(board, my_pos, adv_pos, max_step, 0, alpha=alpha, beta=beta, current_depth=current_depth)
 
+        board[x, y, d] = False
+        board[x + self.moves[d][0], y + self.moves[d][1], (d+2)%4] = False
+
+        # return rating
+        return rating
+
+    def min_max(self, board, my_pos, adv_pos, max_step, turn, current_depth=0, alpha=-999, beta=999):
         # player 1s turn, get max
         if turn==0:
             possible_moves = self.get_possible_moves_from(board, my_pos, adv_pos, max_step)
+            best_move = possible_moves[0]
             for move in possible_moves:
-                move_score = self.move_rating(board, my_pos, adv_pos, max_step, move, turn, alpha, beta, current_depth)
-                alpha = max(alpha, move_score)
-                # if alpha >= beta:
-                #     return beta
-            
-            return alpha
+                move_score = self.rate_move(board, my_pos, adv_pos, max_step, move, turn, alpha, beta, current_depth=current_depth+1)
+                if move_score > alpha:
+                    best_move = move
+                    alpha = move_score
+                if alpha >= beta:
+                    return move, beta
+            return best_move, alpha
 
         # player 2's turn, get minimum
         elif turn==1:
             possible_moves = self.get_possible_moves_from(board, adv_pos, my_pos, max_step)
+            best_move = possible_moves[0]
             for move in possible_moves:
-                move_score = self.move_rating(board, my_pos, adv_pos, max_step, move, turn, alpha, beta, current_depth)
-                beta = min(beta, move_score)
-                # if alpha >= beta:
-                #     return alpha
-            
-            return beta 
-        
-        return 0
+                move_score = self.rate_move(board, my_pos, adv_pos, max_step, move, turn, alpha, beta, current_depth=current_depth+1)
+                if move_score < beta:
+                    best_move = move
+                    beta = move_score
+                if alpha >= beta:
+                    return move, alpha
+            return best_move, beta
 
     def naive_board_estimator(self, board, my_pos, adv_pos, max_step):
-        # naive board value estimation, based on number of possible moves
-        my_possible_moves = len(self.get_possible_moves_from(board, my_pos, adv_pos, max_step))
-        adv_possible_moves = len(self.get_possible_moves_from(board, adv_pos, my_pos, max_step))
-        
-        return my_possible_moves-adv_possible_moves
+        # naive board value estimation, based on number of possible positions
+        return len(self.get_possible_positions_from(board, my_pos, adv_pos, max_step))-len(self.get_possible_positions_from(board, adv_pos, my_pos, max_step))
 
-    def get_possible_moves_from(self, chess_board, pos, adv_pos, steps, visited=None):
+    def get_possible_positions_from(self, chess_board, pos, adv_pos, steps, visited=None):
         if visited is None:
             visited = {}
-        # check if position is out of board, or oponent's square
-        if not self.in_board(chess_board, pos) or pos == adv_pos:
+        # if oponents square, not valid
+        if pos == adv_pos:
             return []
-
         # check if already visited position with equal or more steps
         if visited.get(pos, 0) >= steps:
             return []
-
         # add self to visited
         visited[pos] = steps
         
-        # add possible moves
-        possible_moves = []
-        for i in range(4):
-            if not chess_board[pos[0], pos[1], i]:
-                possible_moves.append((pos, i))
-        
-        # base case if steps is 0 return self only
+        # base case if steps is 0 return self moves only
+        possible_positions = [pos]
         if steps == 0:
-            return possible_moves
-    
+            return possible_positions
+        
         # recursively visit all posiible adj moves with one less step
-        for i, move in enumerate(self.moves):
-            if not chess_board[pos[0], pos[1], i]:
-                possible_moves = possible_moves + self.get_possible_moves_from(chess_board, (pos[0] + move[0], pos[1] + move[1]), adv_pos, steps-1, visited)
+        for adj_pos in self.get_adj_positions(chess_board, pos):
+            possible_positions = possible_positions + self.get_possible_positions_from(chess_board, adj_pos, adv_pos, steps-1, visited)
         
-        # remove duplicates
-        return list(set(possible_moves))
+        return possible_positions
 
-    def check_endgame(self, board, my_pos, adv_pos):
-        # check board to identify if the game is ended (use code from other file)
-        board_size = board.shape[0]
+    def get_possible_moves_from(self, chess_board, pos, adv_pos, max_steps):
+        return [(ppos, i) for ppos in self.get_possible_positions_from(chess_board, pos, adv_pos, max_steps) for i in range(4) if not chess_board[ppos[0], ppos[1], i]]
 
-        # Union-Find
-        father = dict()
-        for r in range(board_size):
-            for c in range(board_size):
-                father[(r, c)] = (r, c)
-
-        def find(pos):
-            if father[pos] != pos:
-                father[pos] = find(father[pos])
-            return father[pos]
-
-        def union(pos1, pos2):
-            father[pos1] = pos2
-
-        for r in range(board_size):
-            for c in range(board_size):
-                for dir, move in enumerate(
-                    self.moves[1:3]
-                ):  # Only check down and right
-                    if board[r, c, dir + 1]:
-                        continue
-                    pos_a = find((r, c))
-                    pos_b = find((r + move[0], c + move[1]))
-                    if pos_a != pos_b:
-                        union(pos_a, pos_b)
-
-        for r in range(board_size):
-            for c in range(board_size):
-                find((r, c))
+    def check_endgame(self, chess_board, my_pos, adv_pos):   
+        # check board to identify if the game is ended
+        def get_area_from(pos, visited=None):
+            if visited is None:
+                visited = set()
+            if pos in visited:
+                return set()
+            visited.add(pos)
+            for new_pos in self.get_adj_positions(chess_board, pos):
+                visited = visited | get_area_from(new_pos, visited)
+            return visited
         
-        p0_r = find(my_pos)
-        p1_r = find(adv_pos)
-        p0_score = list(father.values()).count(p0_r)
-        p1_score = list(father.values()).count(p1_r)
-        
-        if p0_r == p1_r:
-            return False, p0_score, p1_score
-        
-        return True, p0_score, p1_score
+        my_area = get_area_from(my_pos)
+        if adv_pos in my_area:
+            return False, len(my_area), len(my_area)
+        return True, len(my_area), len(get_area_from(adv_pos))
+
+    def get_adj_positions(self, board, pos):
+        return [(pos[0] + move[0], pos[1] + move[1]) for i, move in enumerate(self.moves) if not board[pos[0], pos[1], i]]
 
     def in_board(self, chess_board, pos):
         return 0 <= pos[0] < chess_board.shape[0] and 0 <= pos[1] < chess_board.shape[1]
