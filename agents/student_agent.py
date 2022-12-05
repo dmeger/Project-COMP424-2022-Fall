@@ -7,4 +7,3 @@ from store import register_agent
 class StudentAgent(MinMaxAgent):
     def __init__(self):
         super(StudentAgent, self).__init__()
-        self.name = "StudentAgent"
