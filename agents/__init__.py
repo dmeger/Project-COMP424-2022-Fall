@@ -4,3 +4,4 @@ from .human_agent import HumanAgent
 from .student_agent import StudentAgent
 from .minmax_agent import MinMaxAgent
 from .my_random_agent import MyRandomAgent
+from .montecarlo_agent import MonteCarloAgent

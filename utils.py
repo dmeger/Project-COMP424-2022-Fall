@@ -2,6 +2,7 @@ from contextlib import contextmanager
 import logging
 
 MOVES = ((-1, 0), (0, 1), (1, 0), (0, -1))
+OPPOSITES = {0: 2, 1: 3, 2: 0, 3: 1}
 
 @contextmanager
 def all_logging_disabled(highest_level=logging.CRITICAL):
@@ -52,11 +53,11 @@ def get_possible_positions_from(chess_board, my_pos, adv_pos, steps, visited=Non
     
     return possible_positions
 
-def get_possible_moves_from(chess_board, pos, adv_pos, max_steps):
-    return [(ppos, i) for ppos in get_possible_positions_from(chess_board, pos, adv_pos, max_steps) for i in range(4) if not chess_board[ppos[0], ppos[1], i]]
+def get_possible_moves_from(chess_board, my_pos, adv_pos, max_steps):
+    return [(ppos, i) for ppos in get_possible_positions_from(chess_board, my_pos, adv_pos, max_steps) for i in range(4) if not chess_board[ppos[0], ppos[1], i]]
 
 def check_endgame(chess_board, my_pos, adv_pos):   
-    # faster check endgame method
+    # check endgame method
     def get_area_from(pos, visited=None):
         if visited is None:
             visited = set()

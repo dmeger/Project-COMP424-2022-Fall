@@ -51,7 +51,7 @@ class MinMaxAgent(Agent):
         return self.get_best_move(chess_board, my_pos, adv_pos, max_step)
     
     def get_best_move(self, board, my_pos, adv_pos, max_step):
-        # expected branching factor based on number of possible moves for each player
+        # expected branching factor based on average number of possible moves for each player
         expected_branching_factor = 0.5*(len(get_possible_moves_from(board, my_pos, adv_pos, max_step)) + len(get_possible_moves_from(board, adv_pos, my_pos, max_step)))
         
         # max depth we allow will be proportional to this based on the following equation (check report for derivation), essentially as you near the end of the game, you can look deeper
